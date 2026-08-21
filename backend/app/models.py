@@ -1,0 +1,94 @@
+from sqlalchemy import Column, Integer, String, Float, ForeignKey, DateTime
+from sqlalchemy.orm import relationship
+from datetime import datetime
+from app.database import Base
+
+class User(Base):
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, index=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    # Relationships
+    profile = relationship("UserProfileModel", back_populates="user", uselist=False, cascade="all, delete-orphan")
+    assets = relationship("AssetAllocationModel", back_populates="user", cascade="all, delete-orphan")
+    goals = relationship("GoalModel", back_populates="user", cascade="all, delete-orphan")
+    life_events = relationship("LifeEventModel", back_populates="user", cascade="all, delete-orphan")
+    liabilities = relationship("LiabilityModel", back_populates="user", cascade="all, delete-orphan")
+
+
+class UserProfileModel(Base):
+    __tablename__ = "user_profiles"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), unique=True)
+    current_age = Column(Integer, nullable=False)
+    monthly_income = Column(Float, nullable=False)
+    monthly_expenses = Column(Float, nullable=False)
+    monthly_sip = Column(Float, nullable=False)
+    current_wealth = Column(Float, nullable=False)
+    income_growth_mean = Column(Float, default=0.08)
+    income_growth_vol = Column(Float, default=0.03)
+    inflation_mean = Column(Float, default=0.06)
+    inflation_vol = Column(Float, default=0.015)
+
+    user = relationship("User", back_populates="profile")
+
+
+class AssetAllocationModel(Base):
+    __tablename__ = "asset_allocations"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"))
+    name = Column(String, nullable=False)
+    weight = Column(Float, nullable=False)              # fraction, e.g. 0.60 for 60%
+    expected_return = Column(Float, nullable=False)     # annual rate, e.g. 0.12 for 12%
+    volatility = Column(Float, nullable=False)          # annual volatility, e.g. 0.18 for 18%
+
+    user = relationship("User", back_populates="assets")
+
+
+class GoalModel(Base):
+    __tablename__ = "goals"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"))
+    name = Column(String, nullable=False)
+    target_amount = Column(Float, nullable=False)
+    target_age = Column(Integer, nullable=False)
+
+    user = relationship("User", back_populates="goals")
+
+
+class LifeEventModel(Base):
+    __tablename__ = "life_events"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"))
+    name = Column(String, nullable=False)
+    type = Column(String, nullable=False)               # lump_sum_expense, recurring_expense, job_loss, income_boost
+    age = Column(Integer, nullable=False)
+    amount = Column(Float, default=0.0)
+    duration_years = Column(Integer, default=0)
+    probability = Column(Float, default=1.0)
+    income_factor = Column(Float, default=0.0)
+
+    user = relationship("User", back_populates="life_events")
+
+
+class LiabilityModel(Base):
+    __tablename__ = "liabilities"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"))
+    name = Column(String, nullable=False)
+    principal = Column(Float, nullable=False)
+    interest_rate = Column(Float, nullable=False)
+    tenure_years = Column(Integer, nullable=False)
+    start_age = Column(Integer, nullable=False)
+    emi = Column(Float, nullable=False)
+    prepayment_monthly = Column(Float, default=0.0)
+    variable_rate_vol = Column(Float, default=0.0)
+
+    user = relationship("User", back_populates="liabilities")
