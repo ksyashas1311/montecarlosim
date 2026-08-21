@@ -4,10 +4,10 @@ from datetime import datetime
 
 # --- Asset Allocation ---
 class AssetClassBase(BaseModel):
-    name: str
-    weight: float = Field(..., description="Weight in portfolio, e.g. 0.60 for 60%. Sum of all weights must be 1.0")
-    expected_return: float = Field(..., description="Expected annual return rate, e.g. 0.12")
-    volatility: float = Field(..., description="Expected annual volatility, e.g. 0.18")
+    name: str = Field(..., min_length=1, max_length=50)
+    weight: float = Field(..., ge=0.0, le=1.0, description="Weight in portfolio, e.g. 0.60 for 60%. Sum of all weights must be 1.0")
+    expected_return: float = Field(..., ge=-1.0, le=2.0, description="Expected annual return rate, e.g. 0.12")
+    volatility: float = Field(..., ge=0.0, le=2.0, description="Expected annual volatility, e.g. 0.18")
 
 class AssetClassCreate(AssetClassBase):
     pass
@@ -20,9 +20,9 @@ class AssetClassResponse(AssetClassBase):
 
 # --- Goal ---
 class GoalBase(BaseModel):
-    name: str
-    target_amount: float
-    target_age: int
+    name: str = Field(..., min_length=1, max_length=100)
+    target_amount: float = Field(..., gt=0)
+    target_age: int = Field(..., ge=18, le=100)
 
 class GoalCreate(GoalBase):
     pass
@@ -35,13 +35,13 @@ class GoalResponse(GoalBase):
 
 # --- Life Event ---
 class LifeEventBase(BaseModel):
-    name: str
+    name: str = Field(..., min_length=1, max_length=100)
     type: str = Field(..., description="lump_sum_expense, recurring_expense, job_loss, income_boost")
-    age: int
-    amount: float = 0.0
-    duration_years: int = 0
-    probability: float = 1.0
-    income_factor: float = 0.0
+    age: int = Field(..., ge=0, le=120)
+    amount: float = Field(0.0, ge=0)
+    duration_years: int = Field(0, ge=0, le=80)
+    probability: float = Field(1.0, ge=0.0, le=1.0)
+    income_factor: float = Field(0.0, ge=0.0, le=10.0)
 
 class LifeEventCreate(LifeEventBase):
     pass
@@ -54,15 +54,15 @@ class LifeEventResponse(LifeEventBase):
 
 # --- User Profile ---
 class UserProfileBase(BaseModel):
-    current_age: int
-    monthly_income: float
-    monthly_expenses: float
-    monthly_sip: float
-    current_wealth: float
-    income_growth_mean: float = 0.08
-    income_growth_vol: float = 0.03
-    inflation_mean: float = 0.06
-    inflation_vol: float = 0.015
+    current_age: int = Field(..., ge=18, le=100)
+    monthly_income: float = Field(..., ge=0)
+    monthly_expenses: float = Field(..., ge=0)
+    monthly_sip: float = Field(..., ge=0)
+    current_wealth: float = Field(..., ge=0)
+    income_growth_mean: float = Field(0.08, ge=-0.5, le=1.0)
+    income_growth_vol: float = Field(0.03, ge=0.0, le=1.0)
+    inflation_mean: float = Field(0.06, ge=-0.1, le=1.0)
+    inflation_vol: float = Field(0.015, ge=0.0, le=0.5)
 
 class UserProfileCreate(UserProfileBase):
     pass
@@ -75,14 +75,14 @@ class UserProfileResponse(UserProfileBase):
 
 # --- Liabilities (Debt) ---
 class LiabilityBase(BaseModel):
-    name: str
-    principal: float = Field(..., description="Initial loan amount")
-    interest_rate: float = Field(..., description="Base annual interest rate, e.g. 0.08 for 8%")
-    tenure_years: int = Field(..., description="Tenure in years")
-    start_age: int = Field(..., description="Trigger age when loan is taken")
-    emi: float = Field(..., description="Monthly payment amount")
-    prepayment_monthly: float = Field(0.0, description="Optional monthly prepayment amount")
-    variable_rate_vol: float = Field(0.0, description="Annual standard deviation of variable rate shocks (0 = fixed)")
+    name: str = Field(..., min_length=1, max_length=100)
+    principal: float = Field(..., gt=0, description="Initial loan amount")
+    interest_rate: float = Field(..., ge=0.0, le=1.0, description="Base annual interest rate, e.g. 0.08 for 8%")
+    tenure_years: int = Field(..., ge=1, le=50, description="Tenure in years")
+    start_age: int = Field(..., ge=18, le=100, description="Trigger age when loan is taken")
+    emi: float = Field(..., gt=0, description="Monthly payment amount")
+    prepayment_monthly: float = Field(0.0, ge=0, description="Optional monthly prepayment amount")
+    variable_rate_vol: float = Field(0.0, ge=0.0, le=0.5, description="Annual standard deviation of variable rate shocks (0 = fixed)")
 
 class LiabilityCreate(LiabilityBase):
     pass
@@ -117,11 +117,11 @@ class UserResponse(UserBase):
 
 # --- Simulation Run schemas ---
 class SimulationConfigSchema(BaseModel):
-    n_simulations: int = 10000
-    horizon_years: int = 30
+    n_simulations: int = Field(10000, ge=100, le=500000)
+    horizon_years: int = Field(30, ge=1, le=80)
     random_seed: Optional[int] = 42
-    market_model: str = "parametric"
-    decumulation_strategy: str = "inflation_adjusted"
+    market_model: str = Field("parametric", description="parametric, bootstrap, or regime_switching")
+    decumulation_strategy: str = Field("inflation_adjusted", description="fixed, inflation_adjusted, percentage, or guyton_klinger")
 
 class GoalResultSchema(BaseModel):
     name: str

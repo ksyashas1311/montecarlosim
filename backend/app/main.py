@@ -1,5 +1,6 @@
 import sys
 import os
+from pathlib import Path
 from typing import List, Optional, Dict, Any
 from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
@@ -11,7 +12,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from app import models, schemas, crud, optimizer, copilot
 from app.database import engine, get_db
-from engine.simluation import MonteCarloEngine, UserProfile, AssetClass, LifeEvent, Goal, SimulationConfig, Liability
+from engine.simulation import MonteCarloEngine, UserProfile, AssetClass, LifeEvent, Goal, SimulationConfig, Liability
 
 # Initialize database tables
 models.Base.metadata.create_all(bind=engine)
@@ -31,8 +32,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Mount static files to serve the frontend mockups and unified index.html
-app.mount("/static", StaticFiles(directory="/home/da/montecarlosim/frontend/out", html=True), name="static")
+# Mount static files using project-relative path (gracefully skip if not built)
+_BASE_DIR = Path(__file__).resolve().parents[2]  # Projects/
+_FRONTEND_OUT = _BASE_DIR / "frontend" / "out"
+if _FRONTEND_OUT.is_dir():
+    app.mount("/static", StaticFiles(directory=str(_FRONTEND_OUT), html=True), name="static")
 
 # --- Helper to map DB models to Sim Engine dataclasses ---
 def get_sim_inputs(db_user: models.User):
@@ -198,21 +202,11 @@ def simulate_user(
     )
 
     try:
-        # Default correlation matrix construction
-        n_assets = len(assets)
-        correlation_matrix = None
-        # Use simple positive correlation structure
-        if n_assets > 0:
-            import numpy as np
-            correlation_matrix = np.full((n_assets, n_assets), 0.2)
-            np.fill_diagonal(correlation_matrix, 1.0)
-            
         engine = MonteCarloEngine(
             profile=profile,
             assets=assets,
             config=sim_config,
             life_events=life_events,
-            correlation_matrix=correlation_matrix,
             liabilities=liabilities
         )
         result = engine.run(goals=goals)
@@ -249,16 +243,11 @@ def simulate_adhoc(
             decumulation_strategy=config.decumulation_strategy if config else "inflation_adjusted"
         )
         
-        n_assets = len(sim_assets)
-        correlation_matrix = np.full((n_assets, n_assets), 0.2)
-        np.fill_diagonal(correlation_matrix, 1.0)
-        
         engine = MonteCarloEngine(
             profile=sim_profile,
             assets=sim_assets,
             config=sim_config,
-            life_events=sim_events,
-            correlation_matrix=correlation_matrix
+            life_events=sim_events
         )
         result = engine.run(goals=sim_goals)
         return result

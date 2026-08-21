@@ -1,8 +1,8 @@
 import sys
 import os
 
-# Force SQLite for self-contained testing
-os.environ["DATABASE_URL"] = "sqlite:///./test_fintwin.db"
+# Force in-memory SQLite for self-contained testing (no file-based db)
+os.environ["DATABASE_URL"] = "sqlite://"
 
 import unittest
 from fastapi.testclient import TestClient
@@ -16,9 +16,15 @@ from app.database import Base, engine
 class TestFinTwinBackend(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        # Create tables in the test db (we'll share fintwin.db for testing or create a test database)
+        # Create tables in the in-memory test database
         Base.metadata.create_all(bind=engine)
         cls.client = TestClient(app)
+
+    @classmethod
+    def tearDownClass(cls):
+        # Drop all tables and dispose engine to prevent ResourceWarning
+        Base.metadata.drop_all(bind=engine)
+        engine.dispose()
 
     def test_01_user_workflow(self):
         # 1. Create User
@@ -185,6 +191,66 @@ class TestFinTwinBackend(unittest.TestCase):
         # Monthly interest is less than EMI, ensuring principal reduces
         monthly_interest = principal * r_m
         self.assertLess(monthly_interest, emi)
+
+    def test_08_validation_rejects_invalid_input(self):
+        """Verify schema validation rejects invalid field values."""
+        # Age below minimum
+        user_data = {
+            "name": "Test",
+            "profile": {
+                "current_age": 5,  # Below ge=18
+                "monthly_income": 40000,
+                "monthly_expenses": 25000,
+                "monthly_sip": 10000,
+                "current_wealth": 100000,
+            }
+        }
+        response = self.client.post("/api/users", json=user_data)
+        self.assertEqual(response.status_code, 422)
+
+        # Negative monthly income
+        user_data["profile"]["current_age"] = 25
+        user_data["profile"]["monthly_income"] = -5000
+        response = self.client.post("/api/users", json=user_data)
+        self.assertEqual(response.status_code, 422)
+
+    def test_09_simulation_seed_reproducibility(self):
+        """Same seed should produce identical results."""
+        user_id = getattr(self.__class__, "created_user_id", None)
+        self.assertIsNotNone(user_id)
+
+        sim_config = {"n_simulations": 100, "horizon_years": 10, "random_seed": 12345}
+        
+        r1 = self.client.post(f"/api/users/{user_id}/simulate", json=sim_config)
+        r2 = self.client.post(f"/api/users/{user_id}/simulate", json=sim_config)
+        
+        self.assertEqual(r1.status_code, 200)
+        self.assertEqual(r2.status_code, 200)
+        
+        d1 = r1.json()
+        d2 = r2.json()
+        self.assertAlmostEqual(d1["terminal_wealth_median"], d2["terminal_wealth_median"], places=2)
+        self.assertAlmostEqual(d1["var_95"], d2["var_95"], places=2)
+
+    def test_10_different_seeds_diverge(self):
+        """Different seeds should produce statistically different outcomes."""
+        user_id = getattr(self.__class__, "created_user_id", None)
+        self.assertIsNotNone(user_id)
+
+        r1 = self.client.post(f"/api/users/{user_id}/simulate", json={
+            "n_simulations": 500, "horizon_years": 20, "random_seed": 1
+        })
+        r2 = self.client.post(f"/api/users/{user_id}/simulate", json={
+            "n_simulations": 500, "horizon_years": 20, "random_seed": 99999
+        })
+        
+        self.assertEqual(r1.status_code, 200)
+        self.assertEqual(r2.status_code, 200)
+        
+        # Medians should differ (extremely unlikely to be identical with different seeds)
+        d1 = r1.json()
+        d2 = r2.json()
+        self.assertNotAlmostEqual(d1["terminal_wealth_median"], d2["terminal_wealth_median"], places=0)
 
 if __name__ == "__main__":
     unittest.main()

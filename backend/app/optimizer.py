@@ -8,7 +8,7 @@ workspace_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "
 if workspace_root not in sys.path:
     sys.path.append(workspace_root)
 
-from engine.simluation import (
+from engine.simulation import (
     MonteCarloEngine, UserProfile, AssetClass, LifeEvent, Goal, SimulationConfig, Liability
 )
 

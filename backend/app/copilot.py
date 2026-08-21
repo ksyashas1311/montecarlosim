@@ -104,7 +104,7 @@ def chat_with_copilot(
         """
         try:
             from app import crud
-            from engine.simluation import MonteCarloEngine, SimulationConfig, MarketModel, DecumulationStrategy
+            from engine.simulation import MonteCarloEngine, SimulationConfig, MarketModel, DecumulationStrategy
             from app.main import get_sim_inputs
             import numpy as np
 
@@ -163,18 +163,28 @@ def chat_with_copilot(
         try:
             from app import crud
             from app.optimizer import run_stress_test
+            from app.main import get_sim_inputs
             
             db_user = crud.get_user(db, user_id=user_id)
             if not db_user:
                 return json.dumps({"error": "User not found"})
+
+            profile, assets, goals, life_events, liabilities = get_sim_inputs(db_user)
                 
-            res = run_stress_test(db_user, scenario_type)
+            res = run_stress_test(
+                profile=profile,
+                assets=assets,
+                life_events=life_events,
+                goals=goals,
+                scenario_type=scenario_type,
+                liabilities=liabilities
+            )
             summary = {
                 "scenario_name": res["scenario_name"],
                 "description": res["description"],
-                "stressed_ruin_probability": res["stressed_simulation"]["ruin_probability"],
-                "stressed_var_95": res["stressed_simulation"]["var_95"],
-                "stressed_retirement_survival_probability": res["stressed_simulation"]["retirement_survival_probability"],
+                "stressed_ruin_probability": res["stressed_simulation"].ruin_probability,
+                "stressed_var_95": res["stressed_simulation"].var_95,
+                "stressed_retirement_survival_probability": res["stressed_simulation"].retirement_survival_probability,
                 "goals_impact": [
                     {
                         "name": g["name"],
