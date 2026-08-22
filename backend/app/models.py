@@ -93,3 +93,25 @@ class LiabilityModel(Base):
     variable_rate_vol = Column(Float, default=0.0)
 
     user = relationship("User", back_populates="liabilities")
+
+
+class SimulationRunModel(Base):
+    __tablename__ = "simulation_runs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"))
+    job_id = Column(String, index=True, nullable=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    status = Column(String, default="SUCCESS")
+    
+    # Store key metrics directly for easy querying
+    terminal_wealth_mean = Column(Float, nullable=True)
+    terminal_wealth_median = Column(Float, nullable=True)
+    ruin_probability = Column(Float, nullable=True)
+    max_drawdown_p50 = Column(Float, nullable=True)
+    
+    # Store the full JSON result for the frontend
+    from sqlalchemy import JSON
+    result_data = Column(JSON, nullable=True)
+
+    user = relationship("User")

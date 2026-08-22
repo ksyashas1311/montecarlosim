@@ -1,8 +1,8 @@
 import sys
 import os
 
-# Force in-memory SQLite for self-contained testing (no file-based db)
-os.environ["DATABASE_URL"] = "sqlite://"
+# Force file-based SQLite for self-contained testing so workers can access it
+os.environ["DATABASE_URL"] = "sqlite:///./test_backend.db"
 
 import unittest
 from fastapi.testclient import TestClient
@@ -19,6 +19,16 @@ class TestFinTwinBackend(unittest.TestCase):
         # Create tables in the in-memory test database
         Base.metadata.create_all(bind=engine)
         cls.client = TestClient(app)
+        
+        # Configure Celery to run synchronously for tests
+        from app.worker import celery_app
+        celery_app.conf.update(
+            task_always_eager=True, 
+            task_eager_propagates=True,
+            task_store_eager_result=True,
+            broker_url='memory://',
+            result_backend='cache+memory://'
+        )
 
     @classmethod
     def tearDownClass(cls):
@@ -86,17 +96,30 @@ class TestFinTwinBackend(unittest.TestCase):
             "horizon_years": 39,
             "random_seed": 42
         }
-        response = self.client.post(f"/api/users/{user_id}/simulate", json=sim_config)
+        headers = {"Authorization": f"Bearer {user_id}"}
+        response = self.client.post(f"/api/users/{user_id}/simulate", json=sim_config, headers=headers)
         self.assertEqual(response.status_code, 200)
         res_json = response.json()
         
-        self.assertIn("percentiles", res_json)
-        self.assertIn("p50", res_json["percentiles"])
-        self.assertEqual(len(res_json["percentiles"]["p50"]), 40)  # horizon_years + 1
-        self.assertEqual(res_json["n_simulations"], 100)
-        self.assertGreater(len(res_json["goals"]), 0)
-        self.assertEqual(res_json["goals"][0]["name"], "Retirement corpus")
-        self.assertTrue(0.0 <= res_json["goals"][0]["success_probability"] <= 1.0)
+        self.assertIn("job_id", res_json)
+        self.assertEqual(res_json["status"], "PENDING")
+        job_id = res_json["job_id"]
+        
+        # Poll for results
+        response = self.client.get(f"/api/users/{user_id}/simulate/{job_id}", headers=headers)
+        self.assertEqual(response.status_code, 200)
+        res_json = response.json()
+        
+        self.assertEqual(res_json["status"], "SUCCESS", msg=res_json.get("error", ""))
+        result = res_json["result"]
+        
+        self.assertIn("percentiles", result)
+        self.assertIn("p50", result["percentiles"])
+        self.assertEqual(len(result["percentiles"]["p50"]), 40)  # horizon_years + 1
+        self.assertEqual(result["n_simulations"], 100)
+        self.assertGreater(len(result["goals"]), 0)
+        self.assertEqual(result["goals"][0]["name"], "Retirement corpus")
+        self.assertTrue(0.0 <= result["goals"][0]["success_probability"] <= 1.0)
 
     def test_03_optimization_endpoint(self):
         user_id = getattr(self.__class__, "created_user_id", None)
@@ -105,7 +128,8 @@ class TestFinTwinBackend(unittest.TestCase):
         self.assertIsNotNone(goal_id)
         
         # Optimize goal success to 85% probability
-        response = self.client.post(f"/api/users/{user_id}/optimize/{goal_id}?target_probability=0.85")
+        headers = {"Authorization": f"Bearer {user_id}"}
+        response = self.client.post(f"/api/users/{user_id}/optimize/{goal_id}?target_probability=0.85", headers=headers)
         self.assertEqual(response.status_code, 200)
         res_json = response.json()
         self.assertEqual(res_json["goal_name"], "Retirement corpus")
@@ -125,7 +149,8 @@ class TestFinTwinBackend(unittest.TestCase):
             "user_id": user_id
         }
         
-        response = self.client.post(f"/api/users/{user_id}/copilot", json=chat_request)
+        headers = {"Authorization": f"Bearer {user_id}"}
+        response = self.client.post(f"/api/users/{user_id}/copilot", json=chat_request, headers=headers)
         self.assertEqual(response.status_code, 200)
         res_json = response.json()
         
@@ -140,7 +165,8 @@ class TestFinTwinBackend(unittest.TestCase):
         self.assertIsNotNone(user_id)
         self.assertIsNotNone(goal_id)
 
-        response = self.client.get(f"/api/users/{user_id}/goals/{goal_id}/sensitivity")
+        headers = {"Authorization": f"Bearer {user_id}"}
+        response = self.client.get(f"/api/users/{user_id}/goals/{goal_id}/sensitivity", headers=headers)
         self.assertEqual(response.status_code, 200)
         res_json = response.json()
 
@@ -155,7 +181,8 @@ class TestFinTwinBackend(unittest.TestCase):
         stress_request = {
             "scenario_type": "market_crash"
         }
-        response = self.client.post(f"/api/users/{user_id}/stress-test", json=stress_request)
+        headers = {"Authorization": f"Bearer {user_id}"}
+        response = self.client.post(f"/api/users/{user_id}/stress-test", json=stress_request, headers=headers)
         self.assertEqual(response.status_code, 200)
         res_json = response.json()
 
@@ -220,37 +247,47 @@ class TestFinTwinBackend(unittest.TestCase):
         self.assertIsNotNone(user_id)
 
         sim_config = {"n_simulations": 100, "horizon_years": 10, "random_seed": 12345}
+        headers = {"Authorization": f"Bearer {user_id}"}
         
-        r1 = self.client.post(f"/api/users/{user_id}/simulate", json=sim_config)
-        r2 = self.client.post(f"/api/users/{user_id}/simulate", json=sim_config)
+        r1 = self.client.post(f"/api/users/{user_id}/simulate", json=sim_config, headers=headers)
+        r2 = self.client.post(f"/api/users/{user_id}/simulate", json=sim_config, headers=headers)
         
         self.assertEqual(r1.status_code, 200)
         self.assertEqual(r2.status_code, 200)
         
-        d1 = r1.json()
-        d2 = r2.json()
-        self.assertAlmostEqual(d1["terminal_wealth_median"], d2["terminal_wealth_median"], places=2)
-        self.assertAlmostEqual(d1["var_95"], d2["var_95"], places=2)
+        job1 = r1.json()["job_id"]
+        job2 = r2.json()["job_id"]
+        
+        r1_result = self.client.get(f"/api/users/{user_id}/simulate/{job1}", headers=headers).json()["result"]
+        r2_result = self.client.get(f"/api/users/{user_id}/simulate/{job2}", headers=headers).json()["result"]
+        
+        self.assertAlmostEqual(r1_result["terminal_wealth_median"], r2_result["terminal_wealth_median"], places=2)
+        self.assertAlmostEqual(r1_result["var_95"], r2_result["var_95"], places=2)
 
     def test_10_different_seeds_diverge(self):
         """Different seeds should produce statistically different outcomes."""
         user_id = getattr(self.__class__, "created_user_id", None)
         self.assertIsNotNone(user_id)
 
+        headers = {"Authorization": f"Bearer {user_id}"}
         r1 = self.client.post(f"/api/users/{user_id}/simulate", json={
             "n_simulations": 500, "horizon_years": 20, "random_seed": 1
-        })
+        }, headers=headers)
         r2 = self.client.post(f"/api/users/{user_id}/simulate", json={
             "n_simulations": 500, "horizon_years": 20, "random_seed": 99999
-        })
+        }, headers=headers)
         
         self.assertEqual(r1.status_code, 200)
         self.assertEqual(r2.status_code, 200)
         
+        job1 = r1.json()["job_id"]
+        job2 = r2.json()["job_id"]
+        
+        r1_result = self.client.get(f"/api/users/{user_id}/simulate/{job1}", headers=headers).json()["result"]
+        r2_result = self.client.get(f"/api/users/{user_id}/simulate/{job2}", headers=headers).json()["result"]
+        
         # Medians should differ (extremely unlikely to be identical with different seeds)
-        d1 = r1.json()
-        d2 = r2.json()
-        self.assertNotAlmostEqual(d1["terminal_wealth_median"], d2["terminal_wealth_median"], places=0)
+        self.assertNotAlmostEqual(r1_result["terminal_wealth_median"], r2_result["terminal_wealth_median"], places=0)
 
 if __name__ == "__main__":
     unittest.main()

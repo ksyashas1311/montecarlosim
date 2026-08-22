@@ -490,7 +490,7 @@ def run_stress_test(
         
         # Inject career disruption event
         try:
-            from engine.simluation import LifeEventType
+            from engine.simulation import LifeEventType
             job_loss_type = LifeEventType.JOB_LOSS
         except Exception:
             job_loss_type = "job_loss"

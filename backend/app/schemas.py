@@ -54,28 +54,16 @@ class LifeEventResponse(LifeEventBase):
 
 # --- User Profile ---
 class UserProfileBase(BaseModel):
-<<<<<<< HEAD
     current_age: int = Field(..., ge=18, le=100)
     monthly_income: float = Field(..., ge=0)
     monthly_expenses: float = Field(..., ge=0)
     monthly_sip: float = Field(..., ge=0)
     current_wealth: float = Field(..., ge=0)
+    retirement_age: int = Field(55, ge=18, le=100)
     income_growth_mean: float = Field(0.08, ge=-0.5, le=1.0)
     income_growth_vol: float = Field(0.03, ge=0.0, le=1.0)
     inflation_mean: float = Field(0.06, ge=-0.1, le=1.0)
     inflation_vol: float = Field(0.015, ge=0.0, le=0.5)
-=======
-    current_age: int
-    monthly_income: float
-    monthly_expenses: float
-    monthly_sip: float
-    current_wealth: float
-    retirement_age: int = 55
-    income_growth_mean: float = 0.08
-    income_growth_vol: float = 0.03
-    inflation_mean: float = 0.06
-    inflation_vol: float = 0.015
->>>>>>> e4b5d74 (feat: refactor backend architecture with improved configuration, schema aliases, and support for retirement age and user-friendly chat input.)
 
 class UserProfileCreate(UserProfileBase):
     pass
@@ -160,6 +148,16 @@ class SimulationResponse(BaseModel):
     goals: list[GoalResultSchema]
     n_simulations: int
     wealth_paths_sample: list[list[float]]
+
+class SimulationJobResponse(BaseModel):
+    job_id: str
+    status: str
+
+class SimulationJobResult(BaseModel):
+    job_id: str
+    status: str
+    result: Optional[SimulationResponse] = None
+    error: Optional[str] = None
 
 
 # --- Optimization / Reverse Planning Response ---

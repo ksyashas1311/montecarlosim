@@ -46,34 +46,52 @@ FinTwin is designed as a modular, decoupled digital twin system:
 
 ```mermaid
 graph TD
-    UI[HTML5/JS Frontend Dashboard] -->|AJAX/JSON| API[FastAPI Server]
-    API --> DB[(PostgreSQL Database)]
-    API -->|Fallback| SQLite[(SQLite File DB)]
-    API -->|Input Context| Engine[Monte Carlo Engine]
-    API -->|Chat Prompt| Copilot[Gemini Copilot Agent]
-    Engine -->|Simulation Outputs| API
-    Copilot -->|Function Tool Calls| Engine
+    UI[Next.js React Frontend] -->|REST API| API[FastAPI Server]
+    API --> Celery[Celery Worker]
+    API --> Redis[(Redis Broker)]
+    API --> DB[(PostgreSQL / SQLite Database)]
+    Celery --> Engine[Monte Carlo Engine]
+    API --> Copilot[Gemini Copilot Agent]
+    Engine -->|Simulation Outputs| Celery
+    Celery --> Redis
 ```
 
 ### Components:
-- **Frontend SPA**: A Tailwind CSS dashboard utilizing Chart.js to render net worth percentiles (p5, p50, p95), stress-test scenario inputs, and Pareto optimization profiles.
-- **FastAPI Core**: Serves the REST API, manages CRUD operations, and handles failovers.
-- **PostgreSQL Layer**: Persists user profiles, target goals, scheduled life events, and outstanding liabilities (resiliently falling back to SQLite if offline).
-- **Gemini Copilot (google-genai)**: A personal financial copilot equipped with native tool calling configurations (`run_simulation_tool`, `run_stress_test_tool`) to verify calculations from the simulator before replying.
+- **Frontend SPA**: A Next.js (React) application utilizing modern UI paradigms and Chart.js to render net worth percentiles (p5, p50, p95), scenario inputs, and Pareto optimization profiles.
+- **FastAPI Core**: Serves the REST API, manages Authentication and Authorization, and handles task dispatch.
+- **Background Worker**: Celery processes computationally expensive stochastic simulations asynchronously using Redis as a message broker.
+- **PostgreSQL Layer**: Persists user profiles, target goals, simulation runs, scheduled life events, and outstanding liabilities (resiliently falling back to SQLite if offline) using Alembic migrations.
+- **Gemini Copilot (google-genai)**: A personal financial copilot equipped with native tool calling configurations to verify calculations from the simulator before replying.
 
 ---
 
 ## 3. Running Locally
 
 ### Backend Setup
-1. Navigate to backend:
+1. Navigate to backend and install dependencies:
    ```bash
    cd backend
    pip install -r requirements.txt
    ```
-2. Start the dev server:
+2. Initialize database:
+   ```bash
+   alembic upgrade head
+   ```
+3. Start the dev server:
    ```bash
    python3 -m uvicorn app.main:app --host 127.0.0.1 --port 8000
+   ```
+4. Start the Celery worker (in a new terminal):
+   ```bash
+   celery -A app.worker.celery_app worker --loglevel=info
+   ```
+
+### Frontend Setup
+1. Navigate to frontend:
+   ```bash
+   cd frontend
+   npm install
+   npm run dev
    ```
 
 ### Running Tests

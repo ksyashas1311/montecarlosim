@@ -32,12 +32,12 @@ export default function Home() {
   const fetchInitialData = async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/users/1");
+      const res = await fetch("/api/users/1", { headers: { "Authorization": "Bearer 1" } });
       if (!res.ok) {
         // Fallback user setup if user 1 does not exist
         const createUserRes = await fetch("/api/users", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", "Authorization": "Bearer 1" },
           body: JSON.stringify({
             name: "Self",
             current_age: 25,
@@ -51,26 +51,26 @@ export default function Home() {
         // Load initial goals and allocations
         await fetch("/api/users/1/assets", {
           method: "PUT",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", "Authorization": "Bearer 1" },
           body: JSON.stringify({ equity: 0.6, debt: 0.3, gold: 0.05, cash: 0.05 })
         });
         await fetch("/api/users/1/goals", {
           method: "PUT",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", "Authorization": "Bearer 1" },
           body: JSON.stringify([
             { name: "Retirement Target", target_amount: 50000000, target_age: 55, priority: "high" }
           ])
         });
         await fetch("/api/users/1/life-events", {
           method: "PUT",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", "Authorization": "Bearer 1" },
           body: JSON.stringify([
             { name: "Marriage Expenses", amount: 1500000, age: 28, occurs_annually: false, start_age: 28, end_age: 28 }
           ])
         });
         
         // Retry fetch
-        const retryRes = await fetch("/api/users/1");
+        const retryRes = await fetch("/api/users/1", { headers: { "Authorization": "Bearer 1" } });
         const data = await retryRes.json();
         updateLocalState(data);
       } else {
@@ -115,16 +115,37 @@ export default function Home() {
     try {
       const res = await fetch("/api/users/1/simulate", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "Authorization": "Bearer 1" },
         body: JSON.stringify({
+          n_simulations: 10000,
+          horizon_years: 40,
           market_model: model,
           decumulation_strategy: strategy
         })
       });
-      const data = await res.json();
+      const jobData = await res.json();
+      if (!jobData.job_id) return;
+      
+      let status = "PENDING";
+      let simResult = null;
+      while (status === "PENDING") {
+        await new Promise(r => setTimeout(r, 2000));
+        const pollRes = await fetch(`/api/users/1/simulate/${jobData.job_id}`, {
+          headers: { "Authorization": "Bearer 1" }
+        });
+        const pollData = await pollRes.json();
+        status = pollData.status;
+        if (status === "SUCCESS") {
+          simResult = pollData.result;
+        } else if (status === "FAILED") {
+          console.error("Simulation failed:", pollData.error);
+          return;
+        }
+      }
+
       setAppState((prev: any) => ({
         ...prev,
-        simulation: data,
+        simulation: simResult,
         simConfig: { market_model: model, decumulation_strategy: strategy }
       }));
     } catch (e) {
@@ -137,7 +158,7 @@ export default function Home() {
     try {
       const res = await fetch("/api/users/1/profile", {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "Authorization": "Bearer 1" },
         body: JSON.stringify({
           name: appState.profile?.name || "Self",
           current_age: appState.profile?.current_age || 25,
@@ -168,7 +189,7 @@ export default function Home() {
     try {
       const res = await fetch("/api/users/1/assets", {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "Authorization": "Bearer 1" },
         body: JSON.stringify({
           equity: alloc.equity / 100,
           debt: alloc.debt / 100,
@@ -190,7 +211,7 @@ export default function Home() {
     try {
       const res = await fetch("/api/users/1/liabilities", {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "Authorization": "Bearer 1" },
         body: JSON.stringify(list)
       });
       if (res.ok) {
@@ -208,7 +229,7 @@ export default function Home() {
     try {
       const res = await fetch("/api/users/1/liabilities", {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "Authorization": "Bearer 1" },
         body: JSON.stringify(list)
       });
       if (res.ok) {
@@ -224,7 +245,7 @@ export default function Home() {
   const handleRunStressTest = async (type: string) => {
     const res = await fetch("/api/users/1/stress-test", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", "Authorization": "Bearer 1" },
       body: JSON.stringify({ scenario_type: type })
     });
     return await res.json();
@@ -232,7 +253,8 @@ export default function Home() {
 
   const handleRunPareto = async () => {
     const res = await fetch("/api/users/1/optimize-multi-objective", {
-      method: "POST"
+      method: "POST",
+      headers: { "Authorization": "Bearer 1" }
     });
     return await res.json();
   };

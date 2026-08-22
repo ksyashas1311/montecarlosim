@@ -5,7 +5,7 @@ from typing import List, Optional, Dict, Any
 from pydantic import BaseModel
 from google import genai
 from google.genai import types
-from app.config import settings
+from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -103,12 +103,12 @@ def chat_with_copilot(
             decumulation_strategy: The withdrawal logic model. Options: 'inflation_adjusted', 'fixed', 'percentage', or 'guyton_klinger'.
         """
         try:
-            from app import crud
+            from app.repositories import user_repository, financial_repository
             from engine.simulation import MonteCarloEngine, SimulationConfig, MarketModel, DecumulationStrategy
             from app.main import get_sim_inputs
             import numpy as np
 
-            db_user = crud.get_user(db, user_id=user_id)
+            db_user = user_repository.get_user(db, user_id=user_id)
             if not db_user:
                 return json.dumps({"error": "User not found"})
 
@@ -161,40 +161,26 @@ def chat_with_copilot(
             scenario_type: The stress preset type. Options: 'market_crash', 'hyperinflation', 'stagflation', or 'career_disruption'.
         """
         try:
-            from app import crud
+            from app.repositories import user_repository, financial_repository
             from app.optimizer import run_stress_test
             from app.main import get_sim_inputs
             
-            db_user = crud.get_user(db, user_id=user_id)
+            db_user = user_repository.get_user(db, user_id=user_id)
             if not db_user:
                 return json.dumps({"error": "User not found"})
 
-<<<<<<< HEAD
-            profile, assets, goals, life_events, liabilities = get_sim_inputs(db_user)
-                
-=======
             from app.main import get_sim_inputs
             profile, assets, goals, life_events, liabilities = get_sim_inputs(db_user)
+            
             scenario = {
                 "career_shock": "career_disruption",
             }.get(scenario_type, scenario_type)
->>>>>>> e4b5d74 (feat: refactor backend architecture with improved configuration, schema aliases, and support for retirement age and user-friendly chat input.)
+
             res = run_stress_test(
                 profile=profile,
                 assets=assets,
                 life_events=life_events,
                 goals=goals,
-<<<<<<< HEAD
-                scenario_type=scenario_type,
-                liabilities=liabilities
-            )
-            summary = {
-                "scenario_name": res["scenario_name"],
-                "description": res["description"],
-                "stressed_ruin_probability": res["stressed_simulation"].ruin_probability,
-                "stressed_var_95": res["stressed_simulation"].var_95,
-                "stressed_retirement_survival_probability": res["stressed_simulation"].retirement_survival_probability,
-=======
                 scenario_type=scenario,
                 liabilities=liabilities,
             )
@@ -205,7 +191,6 @@ def chat_with_copilot(
                 "stressed_ruin_probability": getattr(stressed, "ruin_probability", None),
                 "stressed_var_95": getattr(stressed, "var_95", None),
                 "stressed_retirement_survival_probability": getattr(stressed, "retirement_survival_probability", None),
->>>>>>> e4b5d74 (feat: refactor backend architecture with improved configuration, schema aliases, and support for retirement age and user-friendly chat input.)
                 "goals_impact": [
                     {
                         "name": g["name"],

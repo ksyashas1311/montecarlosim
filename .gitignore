@@ -1,8 +1,8 @@
-<<<<<<< HEAD
 # Python
 __pycache__/
 *.pyc
 *.pyo
+*.py[cod]
 *.egg-info/
 .venv/
 venv/
@@ -21,31 +21,24 @@ venv/
 node_modules/
 dist/
 build/
+coverage/
 
 # IDE
 .vscode/
 .idea/
 *.swp
 *.swo
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
 
 # OS
 .DS_Store
 Thumbs.db
 
-# Next.js (frontend has its own .gitignore but belt-and-suspenders)
+# Next.js / Frontend
 .next/
 out/
-=======
-__pycache__/
-*.py[cod]
-.pytest_cache/
-.venv/
-venv/
-.env
-*.db
-test_fintwin.db
 frontend/node_modules/
 frontend/.next/
 frontend/out/
-.DS_Store
->>>>>>> e4b5d74 (feat: refactor backend architecture with improved configuration, schema aliases, and support for retirement age and user-friendly chat input.)
