@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { AuthProvider } from "../context/AuthContext";
 
 export const metadata: Metadata = {
   title: "FinTwin — Your Financial Future, Simulated",
@@ -14,8 +15,9 @@ export default function RootLayout({
   return (
     <html lang="en" className="h-full dark antialiased">
       <body className="h-full bg-[#0b0f14] text-[#f0f4f9] antialiased">
-        {children}
+        <AuthProvider>{children}</AuthProvider>
       </body>
     </html>
   );
 }
+

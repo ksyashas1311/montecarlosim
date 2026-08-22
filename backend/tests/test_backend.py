@@ -72,15 +72,17 @@ class TestFinTwinBackend(unittest.TestCase):
         self.assertIsNotNone(res_json["id"])
         
         user_id = res_json["id"]
+        headers = {"Authorization": f"Bearer {user_id}"}
         
         # 2. Get User
-        response = self.client.get(f"/api/users/{user_id}")
+        response = self.client.get(f"/api/users/{user_id}", headers=headers)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["name"], "Arjun Kumar")
         self.assertEqual(response.json()["profile"]["current_age"], 21)
         self.assertEqual(len(response.json()["assets"]), 4)
         self.assertEqual(len(response.json()["goals"]), 1)
         self.assertEqual(len(response.json()["life_events"]), 1)
+
         
         # Save user_id for subsequent tests
         self.__class__.created_user_id = user_id

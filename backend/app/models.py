@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, ForeignKey, DateTime
+from sqlalchemy import Column, Integer, String, Float, Boolean, ForeignKey, DateTime, JSON
 from sqlalchemy.orm import relationship
 from datetime import datetime, timezone
 from app.database import Base
@@ -7,7 +7,12 @@ class User(Base):
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, index=True)
+    email = Column(String, unique=True, index=True, nullable=False)
+    hashed_password = Column(String, nullable=True)
+    google_id = Column(String, unique=True, index=True, nullable=True)
+    name = Column(String, index=True, nullable=True)
+    avatar_url = Column(String, nullable=True)
+    is_active = Column(Boolean, default=True, nullable=False)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     # Relationships
@@ -16,6 +21,8 @@ class User(Base):
     goals = relationship("GoalModel", back_populates="user", cascade="all, delete-orphan")
     life_events = relationship("LifeEventModel", back_populates="user", cascade="all, delete-orphan")
     liabilities = relationship("LiabilityModel", back_populates="user", cascade="all, delete-orphan")
+    simulation_runs = relationship("SimulationRunModel", back_populates="user", cascade="all, delete-orphan")
+
 
 
 class UserProfileModel(Base):
@@ -110,8 +117,7 @@ class SimulationRunModel(Base):
     ruin_probability = Column(Float, nullable=True)
     max_drawdown_p50 = Column(Float, nullable=True)
     
-    # Store the full JSON result for the frontend
-    from sqlalchemy import JSON
     result_data = Column(JSON, nullable=True)
 
-    user = relationship("User")
+    user = relationship("User", back_populates="simulation_runs")
+

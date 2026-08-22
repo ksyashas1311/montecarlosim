@@ -1,10 +1,121 @@
 # 🔮 FinTwin — Your Financial Future, Simulated
 
-FinTwin is a sophisticated, probabilistic **Personal Financial Digital Twin** and **Monte Carlo Engine** designed to replace deterministic financial planning. Instead of predicting a single linear trajectory, FinTwin simulates thousands of possible futures, mapping out risk boundaries, Value-at-Risk (VaR), Conditional Value-at-Risk (CVaR), and retirement ruin probabilities.
+FinTwin is a sophisticated, probabilistic **Personal Financial Digital Twin** and **Monte Carlo Engine** designed to replace deterministic financial planning. Instead of predicting a single linear trajectory, FinTwin simulates thousands of possible futures, mapping out risk boundaries, Value-at-Risk (VaR), Conditional Value-at-Risk (CVaR), and retirement ruin probabilities with production-grade user authentication and data isolation.
 
 ---
 
-## 1. Mathematical Simulation Engine
+## 1. Authentication & Security Architecture
+
+FinTwin includes a production-quality, cookie-based authentication system:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                      Next.js Frontend                       │
+│  - AuthContext (useAuth): user, isAuthenticated, isLoading   │
+│  - AuthModal: Sign In, Register, Continue with Google       │
+│  - Centralized API client (fetch with credentials: include, │
+│    automatic 401 refresh token interceptor)                 │
+└──────────────────────────────┬──────────────────────────────┘
+                               │ Cookies: access_token, refresh_token
+                               │ credentials: "include"
+┌──────────────────────────────▼──────────────────────────────┐
+│                     FastAPI Backend                         │
+│  - /auth/register, /auth/login, /auth/refresh, /auth/logout │
+│  - /auth/me, /auth/google/login, /auth/google/callback      │
+│  - Dependency: get_current_user (reads cookie, verifies JWT)│
+│  - User Data Isolation: all DB queries filtered by user_id  │
+└──────────────────────────────┬──────────────────────────────┘
+                               │
+┌──────────────────────────────▼──────────────────────────────┐
+│                    SQLAlchemy / Database                    │
+│  - User Model: id, email, hashed_password, google_id,       │
+│    name, avatar_url, is_active, created_at                  │
+│  - Foreign Keys: user_profiles, asset_allocations, goals,   │
+│    life_events, liabilities, simulation_runs                │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Security Measures
+- **httpOnly Cookies**: Access (`15 min`) and Refresh (`7 days`) JWT tokens are stored exclusively in `HttpOnly`, `SameSite=Lax` cookies. Tokens are **never** returned in JSON or stored in JavaScript storage (`localStorage`/`sessionStorage`).
+- **Strict Data Isolation**: Every database query establishes authenticated ownership (`user_id == current_user.id`), preventing IDOR vulnerabilities, cross-user data leakage, or tampering.
+- **Password Security**: Passwords are securely hashed using `bcrypt` (never stored in plaintext).
+- **Google OAuth 2.0**: Implements state-based CSRF protection, verified email verification, and automatic account linking.
+
+---
+
+## 2. Authentication API Endpoints
+
+| Method | Endpoint | Description | Auth Required |
+| :--- | :--- | :--- | :--- |
+| `POST` | `/auth/register` | Register with name, email & password (sets httpOnly cookies) | No |
+| `POST` | `/auth/login` | Login with email & password (sets httpOnly cookies) | No |
+| `POST` | `/auth/refresh` | Rotate access & refresh tokens from httpOnly cookie | No (Cookie) |
+| `POST` | `/auth/logout` | Clear access & refresh cookies | No |
+| `GET` | `/auth/me` | Retrieve authenticated user's profile | **Yes** |
+| `GET` | `/auth/google/login` | Initiate Google OAuth 2.0 flow with state protection | No |
+| `GET` | `/auth/google/callback` | Google OAuth callback handler & token exchange | No |
+
+---
+
+## 3. Environment Variables Configuration
+
+Copy `.env.example` to `.env` in the root and configure your values:
+
+```env
+# Database configuration (PostgreSQL or SQLite)
+DATABASE_URL=sqlite:///./fintwin.db
+
+# Environment mode (development / production)
+ENVIRONMENT=development
+
+# JWT Authentication
+JWT_SECRET=fintwin-super-secret-jwt-key-change-in-production-1234567890
+JWT_ALGORITHM=HS256
+ACCESS_TOKEN_EXPIRE_MINUTES=15
+REFRESH_TOKEN_EXPIRE_DAYS=7
+
+# Cookie Settings
+COOKIE_SECURE=false
+COOKIE_SAMESITE=lax
+
+# Google OAuth 2.0
+GOOGLE_CLIENT_ID=your-google-client-id.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=your-google-client-secret
+GOOGLE_REDIRECT_URI=http://localhost:8000/auth/google/callback
+
+# Frontend URL
+FRONTEND_URL=http://localhost:3000
+
+# Optional: Gemini API Key for Copilot AI chat
+GEMINI_API_KEY=
+```
+
+---
+
+## 4. Google Cloud OAuth 2.0 Setup Guide
+
+To enable Google login:
+
+1. Go to the [Google Cloud Console](https://console.cloud.google.com/).
+2. Create a new project (e.g. `FinTwin`).
+3. Navigate to **APIs & Services** > **OAuth consent screen**:
+   - Select **External** and click **Create**.
+   - Fill in **App name** (`FinTwin`), **User support email**, and **Developer contact information**.
+   - Add scopes: `openid`, `.../auth/userinfo.email`, `.../auth/userinfo.profile`.
+4. Navigate to **APIs & Services** > **Credentials**:
+   - Click **Create Credentials** > **OAuth client ID**.
+   - Application type: **Web application**.
+   - Name: `FinTwin Web Client`.
+   - **Authorized JavaScript origins**:
+     - `http://localhost:3000`
+     - `http://localhost:8000`
+   - **Authorized redirect URIs**:
+     - `http://localhost:8000/auth/google/callback`
+5. Copy the **Client ID** and **Client Secret** into your `.env` file (`GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`).
+
+---
+
+## 5. Mathematical Simulation Engine
 
 FinTwin supports three distinct multivariate market models and four decumulation rules:
 
@@ -18,54 +129,16 @@ FinTwin supports three distinct multivariate market models and four decumulation
    Resamples vector return observations directly from the joint Indian market dataset (Nifty 50, Gold, Debt, FD) spanning 2010–2024. This preserves the non-normal skewness, kurtosis, and empirical correlations without making parametric assumptions.
 
 3. **Markov Regime-Switching**:
-   Transitions the market state through five distinct regimes: $\mathcal{S}_t \in \{\text{BULL}, \text{NORMAL}, \text{BEAR}, \text{CRISIS}, \text{RECOVERY}\}$ using a transition probability matrix $\mathbf{P}$:
-   $$P_{ij} = \mathbb{P}(\mathcal{S}_{t+1} = j \mid \mathcal{S}_t = i)$$
-   
-   During a **CRISIS** regime:
-   - Asset correlations are dynamically spiked to $+0.60$ to simulate systemic market contagions.
-   - Volatilities are scaled up, and expected returns are shifted downwards.
+   Transitions the market state through five distinct regimes: $\mathcal{S}_t \in \{\text{BULL}, \text{NORMAL}, \text{BEAR}, \text{CRISIS}, \text{RECOVERY}\}$ using a transition probability matrix $\mathbf{P}$.
 
 ### B. Decumulation & Withdrawal Guardrails
 - **Fixed & Inflation-Adjusted**: Withdrawals grow strictly by the simulated annual inflation rate.
 - **Percentage (4% Rule)**: Fixed percentage of the portfolio value is withdrawn annually.
-- **Guyton-Klinger Guardrails**:
-  Dynamic rules-based withdrawal adjustment:
-  - **Capital Preservation Rule**: If the current withdrawal rate exceeds the initial rate by $20\%$ due to market crashes, withdrawals are cut by $10\%$.
-  - **Prosperity Rule**: If the current withdrawal rate drops $20\%$ below the initial target due to bull runs, withdrawals are increased by $10\%$ to avoid unnecessary wealth hoarding.
-
-### C. Monthly Amortization & Debt Loop
-Rather than treating debt as a simple annual outflow, FinTwin executes a monthly inner loop that calculates amortization:
-$$EMI = P \times \frac{r_m(1+r_m)^N}{(1+r_m)^N - 1}$$
-Where $r_m$ is the monthly interest rate, and $N$ is the remaining tenure in months. Variable rate loans are subjected to random volatility shocks, tracking interest rate sensitivity.
+- **Guyton-Klinger Guardrails**: Dynamic rules-based withdrawal adjustment with Capital Preservation and Prosperity rules.
 
 ---
 
-## 2. Software Architecture
-
-FinTwin is designed as a modular, decoupled digital twin system:
-
-```mermaid
-graph TD
-    UI[Next.js React Frontend] -->|REST API| API[FastAPI Server]
-    API --> Celery[Celery Worker]
-    API --> Redis[(Redis Broker)]
-    API --> DB[(PostgreSQL / SQLite Database)]
-    Celery --> Engine[Monte Carlo Engine]
-    API --> Copilot[Gemini Copilot Agent]
-    Engine -->|Simulation Outputs| Celery
-    Celery --> Redis
-```
-
-### Components:
-- **Frontend SPA**: A Next.js (React) application utilizing modern UI paradigms and Chart.js to render net worth percentiles (p5, p50, p95), scenario inputs, and Pareto optimization profiles.
-- **FastAPI Core**: Serves the REST API, manages Authentication and Authorization, and handles task dispatch.
-- **Background Worker**: Celery processes computationally expensive stochastic simulations asynchronously using Redis as a message broker.
-- **PostgreSQL Layer**: Persists user profiles, target goals, simulation runs, scheduled life events, and outstanding liabilities (resiliently falling back to SQLite if offline) using Alembic migrations.
-- **Gemini Copilot (google-genai)**: A personal financial copilot equipped with native tool calling configurations to verify calculations from the simulator before replying.
-
----
-
-## 3. Running Locally
+## 6. Running Locally
 
 ### Backend Setup
 1. Navigate to backend and install dependencies:
@@ -73,29 +146,36 @@ graph TD
    cd backend
    pip install -r requirements.txt
    ```
-2. Initialize database:
+2. Run database migrations:
    ```bash
    alembic upgrade head
    ```
-3. Start the dev server:
+3. Start the FastAPI server:
    ```bash
-   python3 -m uvicorn app.main:app --host 127.0.0.1 --port 8000
+   uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
    ```
-4. Start the Celery worker (in a new terminal):
+4. Start the Celery worker (optional, for async simulation runs):
    ```bash
    celery -A app.worker.celery_app worker --loglevel=info
    ```
 
 ### Frontend Setup
-1. Navigate to frontend:
+1. Navigate to frontend and install dependencies:
    ```bash
    cd frontend
    npm install
+   ```
+2. Start the Next.js development server:
+   ```bash
    npm run dev
    ```
+3. Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-### Running Tests
-Execute the unit and mathematical verification tests using:
+---
+
+## 7. Running Automated Tests
+
+Run the complete test suite (Authentication + Data Isolation + Monte Carlo Verification):
 ```bash
-pytest backend/tests/
+pytest backend/tests/ -v
 ```

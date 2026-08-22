@@ -1,12 +1,13 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from app import schemas
+from app import schemas, models
 from app.repositories import user_repository, financial_repository
 from app import copilot
 from app.database import get_db
 from app.services.simulation_service import get_sim_inputs
 from engine.simulation import UserProfile, AssetClass, SimulationConfig, MonteCarloEngine
+from app.core.security import verify_user_ownership
 
 router = APIRouter(prefix="/api/users", tags=["AI Copilot"])
 
@@ -14,7 +15,8 @@ router = APIRouter(prefix="/api/users", tags=["AI Copilot"])
 def query_copilot(
     user_id: int,
     request: schemas.ChatRequest,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(verify_user_ownership)
 ):
     db_user = user_repository.get_user(db, user_id=user_id)
     if not db_user:

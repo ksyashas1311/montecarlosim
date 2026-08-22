@@ -1,11 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from app import schemas
+from app import schemas, models
 from app.repositories import user_repository, financial_repository
 from app import optimizer
 from app.database import get_db
 from app.services.simulation_service import get_sim_inputs, STRESS_ALIASES
+from app.core.security import verify_user_ownership
 
 router = APIRouter(prefix="/api/users", tags=["Stress Testing"])
 
@@ -13,7 +14,8 @@ router = APIRouter(prefix="/api/users", tags=["Stress Testing"])
 def run_user_stress_test(
     user_id: int,
     request: schemas.StressTestRequest,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(verify_user_ownership)
 ):
     db_user = user_repository.get_user(db, user_id=user_id)
     if not db_user:

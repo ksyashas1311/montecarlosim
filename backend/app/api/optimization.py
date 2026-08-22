@@ -8,6 +8,7 @@ from app import optimizer, models
 from app.database import get_db
 from app.services.simulation_service import get_sim_inputs
 from engine.simulation import Goal
+from app.core.security import verify_user_ownership
 
 router = APIRouter(prefix="/api/users", tags=["Optimization"])
 
@@ -16,7 +17,8 @@ def optimize_user_goal(
     user_id: int,
     goal_id: int,
     target_probability: float = 0.80,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(verify_user_ownership)
 ):
     db_user = user_repository.get_user(db, user_id=user_id)
     if not db_user:
@@ -46,7 +48,8 @@ def optimize_user_goal(
 def get_goal_sensitivity(
     user_id: int,
     goal_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(verify_user_ownership)
 ):
     db_user = user_repository.get_user(db, user_id=user_id)
     if not db_user:
@@ -74,7 +77,8 @@ def get_goal_sensitivity(
 @router.post("/{user_id}/optimize-multi-objective", response_model=schemas.MultiObjectiveResponse)
 def optimize_user_multi_objective(
     user_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(verify_user_ownership)
 ):
     db_user = user_repository.get_user(db, user_id=user_id)
     if not db_user:

@@ -9,11 +9,14 @@ import {
   Sparkles,
   RotateCcw,
   Bell,
-  User,
-  ShieldCheck,
+  User as UserIcon,
+  LogOut,
+  LogIn,
+  UserPlus,
 } from "lucide-react";
 import { usePlanStore } from "../hooks/usePlanStore";
 import { planStore } from "../store/planStore";
+import { useAuth } from "../context/AuthContext";
 
 // Feature modules
 import OnboardingFlow from "../components/onboarding/OnboardingFlow";
@@ -23,10 +26,20 @@ import GoalsTimelineView from "../components/goals/GoalsTimelineView";
 import ScenarioLabView from "../components/lab/ScenarioLabView";
 import CopilotBubble from "../components/copilot/CopilotBubble";
 import CopilotDrawer from "../components/copilot/CopilotDrawer";
+import AuthModal from "../components/auth/AuthModal";
 
 export default function Home() {
   const store = usePlanStore();
   const { isOnboarded, activeScreen, profile, simulation } = store;
+  const { user, isAuthenticated, logout } = useAuth();
+
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [authModalMode, setAuthModalMode] = useState<"login" | "register">("login");
+
+  const openAuth = (mode: "login" | "register") => {
+    setAuthModalMode(mode);
+    setIsAuthModalOpen(true);
+  };
 
   // Render Onboarding if first-time user
   if (!isOnboarded) {
@@ -39,6 +52,9 @@ export default function Home() {
     { id: "goals", label: "Goals & Timeline", icon: Calendar },
     { id: "lab", label: "Scenario Lab", icon: Sliders },
   ];
+
+  const displayName = user?.name || profile.name || "Guest";
+  const userInitial = displayName.charAt(0).toUpperCase();
 
   return (
     <div className="flex min-h-screen bg-[#0b0f14] text-[#f0f4f9] selection:bg-[#00dce5] selection:text-[#0b0f14]">
@@ -65,7 +81,7 @@ export default function Home() {
                 <button
                   key={item.id}
                   onClick={() => planStore.setActiveScreen(item.id as any)}
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-xs font-bold tracking-wide transition-all ${
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-xs font-bold tracking-wide transition-all cursor-pointer ${
                     active
                       ? "bg-[#00dce5]/15 text-[#00dce5] border border-[#00dce5]/30 shadow-md shadow-[#00dce5]/5"
                       : "text-white/60 hover:bg-white/5 hover:text-white"
@@ -79,24 +95,70 @@ export default function Home() {
           </nav>
         </div>
 
-        {/* Sidebar Footer User Info & Demo Reset */}
+        {/* Sidebar Footer User Info & Auth Actions */}
         <div className="p-4 border-t border-white/5 space-y-2">
-          {/* User Profile Card */}
-          <div className="p-3 rounded-2xl bg-white/5 border border-white/5 flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-[#d1bcff] to-[#00dce5] flex items-center justify-center text-[#0b0f14] font-bold text-xs">
-              {profile.name.charAt(0)}
+          {isAuthenticated && user ? (
+            /* Authenticated User Profile Card */
+            <div className="p-3 rounded-2xl bg-white/5 border border-white/5 space-y-2">
+              <div className="flex items-center gap-3">
+                {user.avatar_url ? (
+                  <img
+                    src={user.avatar_url}
+                    alt={displayName}
+                    className="w-8 h-8 rounded-full border border-[#00dce5]/30 object-cover"
+                  />
+                ) : (
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-[#d1bcff] to-[#00dce5] flex items-center justify-center text-[#0b0f14] font-bold text-xs">
+                    {userInitial}
+                  </div>
+                )}
+                <div className="overflow-hidden flex-1">
+                  <span className="text-xs font-bold text-white block truncate">{displayName}</span>
+                  <span className="text-[10px] text-white/40 font-mono block truncate">
+                    {user.email || `Score: ${simulation?.health_score ?? 78}`}
+                  </span>
+                </div>
+              </div>
+
+              <button
+                onClick={() => logout()}
+                className="w-full py-1.5 px-2 rounded-xl text-[11px] font-semibold text-rose-400/80 hover:text-rose-300 hover:bg-rose-500/10 transition flex items-center justify-center gap-1.5 cursor-pointer"
+                title="Log out of account"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                <span>Log Out</span>
+              </button>
             </div>
-            <div className="overflow-hidden">
-              <span className="text-xs font-bold text-white block truncate">{profile.name}</span>
-              <span className="text-[10px] text-white/40 font-mono block">
-                Age {profile.current_age} · Score: {simulation?.health_score ?? 78}
-              </span>
+          ) : (
+            /* Unauthenticated Prompt Card */
+            <div className="p-3 rounded-2xl bg-gradient-to-b from-white/5 to-transparent border border-white/5 space-y-2">
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-amber-400" />
+                <span className="text-[11px] font-bold text-white/70">Guest Mode</span>
+              </div>
+              <p className="text-[10px] text-white/40 leading-tight">
+                Sign in to sync simulations across devices and protect your plan.
+              </p>
+              <div className="grid grid-cols-2 gap-1.5 pt-1">
+                <button
+                  onClick={() => openAuth("login")}
+                  className="py-1.5 px-2 rounded-xl text-[10px] font-bold bg-white/10 hover:bg-white/15 text-white transition text-center cursor-pointer"
+                >
+                  Sign In
+                </button>
+                <button
+                  onClick={() => openAuth("register")}
+                  className="py-1.5 px-2 rounded-xl text-[10px] font-bold bg-[#00dce5] hover:bg-[#00c5cd] text-[#0b0f14] transition text-center cursor-pointer"
+                >
+                  Sign Up
+                </button>
+              </div>
             </div>
-          </div>
+          )}
 
           <button
             onClick={() => planStore.loadDemoData()}
-            className="w-full py-2 rounded-xl text-[11px] font-semibold text-white/40 hover:text-white hover:bg-white/5 transition flex items-center justify-center gap-1.5"
+            className="w-full py-2 rounded-xl text-[11px] font-semibold text-white/40 hover:text-white hover:bg-white/5 transition flex items-center justify-center gap-1.5 cursor-pointer"
             title="Reset workspace to benchmark demo data"
           >
             <RotateCcw className="w-3.5 h-3.5" />
@@ -122,11 +184,45 @@ export default function Home() {
           <div className="flex items-center gap-3">
             <button
               onClick={() => planStore.setCopilotOpen(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-[#00dce5]/10 hover:bg-[#00dce5]/20 text-[#00dce5] border border-[#00dce5]/20 transition"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-[#00dce5]/10 hover:bg-[#00dce5]/20 text-[#00dce5] border border-[#00dce5]/20 transition cursor-pointer"
             >
               <Sparkles className="w-3.5 h-3.5" />
               <span>Ask Copilot</span>
             </button>
+
+            {isAuthenticated && user ? (
+              <div className="flex items-center gap-2 pl-2 border-l border-white/10">
+                {user.avatar_url ? (
+                  <img
+                    src={user.avatar_url}
+                    alt={displayName}
+                    className="w-8 h-8 rounded-xl border border-white/10 object-cover"
+                  />
+                ) : (
+                  <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-[#d1bcff] to-[#00dce5] flex items-center justify-center text-[#0b0f14] font-bold text-xs shadow-md">
+                    {userInitial}
+                  </div>
+                )}
+                <span className="text-xs font-bold text-white/80 hidden sm:inline">{displayName}</span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 pl-2 border-l border-white/10">
+                <button
+                  onClick={() => openAuth("login")}
+                  className="px-3 py-1.5 rounded-xl text-xs font-bold text-white/80 hover:text-white hover:bg-white/5 transition cursor-pointer flex items-center gap-1.5"
+                >
+                  <LogIn className="w-3.5 h-3.5" />
+                  <span>Sign In</span>
+                </button>
+                <button
+                  onClick={() => openAuth("register")}
+                  className="px-3 py-1.5 rounded-xl text-xs font-bold bg-[#00dce5] hover:bg-[#00c5cd] text-[#0b0f14] transition cursor-pointer flex items-center gap-1.5 shadow-md shadow-[#00dce5]/20"
+                >
+                  <UserPlus className="w-3.5 h-3.5" />
+                  <span>Get Started</span>
+                </button>
+              </div>
+            )}
 
             <div className="w-8 h-8 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-white/60">
               <Bell className="w-4 h-4" />
@@ -166,6 +262,13 @@ export default function Home() {
       {/* Persistent Floating Copilot Affordance across ALL screens */}
       <CopilotBubble />
       <CopilotDrawer />
+
+      {/* Authentication Modal */}
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+        initialMode={authModalMode}
+      />
     </div>
   );
 }

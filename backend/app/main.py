@@ -14,9 +14,10 @@ for _p in (_BACKEND_DIR, _REPO_ROOT):
 
 from app import models
 from app.database import engine, ensure_schema
+from app.core.config import settings
 from app.core.exceptions import FinTwinException, fintwin_exception_handler, generic_exception_handler
 from app.api import (
-    users, profile, assets, goals, life_events, 
+    auth, users, profile, assets, goals, life_events, 
     liabilities, simulations, optimization, stress, copilot
 )
 
@@ -25,13 +26,22 @@ ensure_schema()
 
 app = FastAPI(
     title="FinTwin Backend API",
-    description="REST API & Quantitative Simulation Engine for Personal Financial Digital Twin",
+    description="REST API & Quantitative Simulation Engine for Personal Financial Digital Twin with Production Authentication",
     version="1.0.0"
 )
 
+# CORS configuration with credentials support
+allowed_origins = [
+    settings.FRONTEND_URL,
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://localhost:8000",
+    "http://127.0.0.1:8000",
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=list(set([origin.strip() for origin in allowed_origins if origin])),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -41,6 +51,8 @@ app.add_exception_handler(FinTwinException, fintwin_exception_handler)
 app.add_exception_handler(Exception, generic_exception_handler)
 
 # Include routers
+app.include_router(auth.router)
+app.include_router(auth.router, prefix="/api")
 app.include_router(users.router)
 app.include_router(profile.router)
 app.include_router(assets.router)

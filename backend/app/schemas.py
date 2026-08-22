@@ -1,4 +1,5 @@
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, Field, ConfigDict, EmailStr
+
 from typing import List, Optional
 from datetime import datetime
 
@@ -94,19 +95,43 @@ class LiabilityResponse(LiabilityBase):
     model_config = ConfigDict(from_attributes=True)
 
 
-# --- User ---
+# --- User & Auth ---
+class UserRegister(BaseModel):
+    email: EmailStr
+    password: str = Field(..., min_length=8, description="Password must be at least 8 characters")
+    name: Optional[str] = None
+
+class UserLogin(BaseModel):
+    email: EmailStr
+    password: str
+
 class UserBase(BaseModel):
-    name: str
+    name: Optional[str] = None
+    email: Optional[str] = None
 
 class UserCreate(UserBase):
+    email: Optional[str] = None
+    password: Optional[str] = None
     profile: Optional[UserProfileCreate] = None
     assets: Optional[list[AssetClassCreate]] = None
     goals: Optional[list[GoalCreate]] = None
     life_events: Optional[list[LifeEventCreate]] = None
     liabilities: Optional[list[LiabilityCreate]] = None
 
+class UserSafeProfile(BaseModel):
+    id: int
+    email: Optional[str] = None
+    name: Optional[str] = None
+    avatar_url: Optional[str] = None
+    is_active: bool = True
+    created_at: datetime
+    model_config = ConfigDict(from_attributes=True)
+
 class UserResponse(UserBase):
     id: int
+    email: Optional[str] = None
+    avatar_url: Optional[str] = None
+    is_active: bool = True
     created_at: datetime
     profile: Optional[UserProfileResponse] = None
     assets: list[AssetClassResponse] = []
@@ -114,6 +139,7 @@ class UserResponse(UserBase):
     life_events: list[LifeEventResponse] = []
     liabilities: list[LiabilityResponse] = []
     model_config = ConfigDict(from_attributes=True)
+
 
 
 # --- Simulation Run schemas ---
