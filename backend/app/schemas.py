@@ -54,6 +54,7 @@ class LifeEventResponse(LifeEventBase):
 
 # --- User Profile ---
 class UserProfileBase(BaseModel):
+<<<<<<< HEAD
     current_age: int = Field(..., ge=18, le=100)
     monthly_income: float = Field(..., ge=0)
     monthly_expenses: float = Field(..., ge=0)
@@ -63,6 +64,18 @@ class UserProfileBase(BaseModel):
     income_growth_vol: float = Field(0.03, ge=0.0, le=1.0)
     inflation_mean: float = Field(0.06, ge=-0.1, le=1.0)
     inflation_vol: float = Field(0.015, ge=0.0, le=0.5)
+=======
+    current_age: int
+    monthly_income: float
+    monthly_expenses: float
+    monthly_sip: float
+    current_wealth: float
+    retirement_age: int = 55
+    income_growth_mean: float = 0.08
+    income_growth_vol: float = 0.03
+    inflation_mean: float = 0.06
+    inflation_vol: float = 0.015
+>>>>>>> e4b5d74 (feat: refactor backend architecture with improved configuration, schema aliases, and support for retirement age and user-friendly chat input.)
 
 class UserProfileCreate(UserProfileBase):
     pass
@@ -172,8 +185,9 @@ class ChatMessage(BaseModel):
     content: str
 
 class ChatRequest(BaseModel):
-    messages: list[ChatMessage]
-    user_id: int
+    messages: list[ChatMessage] = []
+    user_id: Optional[int] = None
+    message: Optional[str] = None  # convenience field used by the dashboard copilot
 
 class ChatResponse(BaseModel):
     reply: str

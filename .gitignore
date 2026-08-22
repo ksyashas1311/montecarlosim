@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Python
 __pycache__/
 *.pyc
@@ -34,3 +35,17 @@ Thumbs.db
 # Next.js (frontend has its own .gitignore but belt-and-suspenders)
 .next/
 out/
+=======
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+.env
+*.db
+test_fintwin.db
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+.DS_Store
+>>>>>>> e4b5d74 (feat: refactor backend architecture with improved configuration, schema aliases, and support for retirement age and user-friendly chat input.)

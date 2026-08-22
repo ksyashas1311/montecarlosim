@@ -28,6 +28,7 @@ class UserProfileModel(Base):
     monthly_expenses = Column(Float, nullable=False)
     monthly_sip = Column(Float, nullable=False)
     current_wealth = Column(Float, nullable=False)
+    retirement_age = Column(Integer, default=55)
     income_growth_mean = Column(Float, default=0.08)
     income_growth_vol = Column(Float, default=0.03)
     inflation_mean = Column(Float, default=0.06)

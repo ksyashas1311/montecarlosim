@@ -169,13 +169,22 @@ def chat_with_copilot(
             if not db_user:
                 return json.dumps({"error": "User not found"})
 
+<<<<<<< HEAD
             profile, assets, goals, life_events, liabilities = get_sim_inputs(db_user)
                 
+=======
+            from app.main import get_sim_inputs
+            profile, assets, goals, life_events, liabilities = get_sim_inputs(db_user)
+            scenario = {
+                "career_shock": "career_disruption",
+            }.get(scenario_type, scenario_type)
+>>>>>>> e4b5d74 (feat: refactor backend architecture with improved configuration, schema aliases, and support for retirement age and user-friendly chat input.)
             res = run_stress_test(
                 profile=profile,
                 assets=assets,
                 life_events=life_events,
                 goals=goals,
+<<<<<<< HEAD
                 scenario_type=scenario_type,
                 liabilities=liabilities
             )
@@ -185,6 +194,18 @@ def chat_with_copilot(
                 "stressed_ruin_probability": res["stressed_simulation"].ruin_probability,
                 "stressed_var_95": res["stressed_simulation"].var_95,
                 "stressed_retirement_survival_probability": res["stressed_simulation"].retirement_survival_probability,
+=======
+                scenario_type=scenario,
+                liabilities=liabilities,
+            )
+            stressed = res["stressed_simulation"]
+            summary = {
+                "scenario_name": res["scenario_name"],
+                "description": res["description"],
+                "stressed_ruin_probability": getattr(stressed, "ruin_probability", None),
+                "stressed_var_95": getattr(stressed, "var_95", None),
+                "stressed_retirement_survival_probability": getattr(stressed, "retirement_survival_probability", None),
+>>>>>>> e4b5d74 (feat: refactor backend architecture with improved configuration, schema aliases, and support for retirement age and user-friendly chat input.)
                 "goals_impact": [
                     {
                         "name": g["name"],

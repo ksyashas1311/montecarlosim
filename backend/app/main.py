@@ -1,21 +1,75 @@
 import sys
 import os
+<<<<<<< HEAD
 from pathlib import Path
 from typing import List, Optional, Dict, Any
+=======
+from typing import List, Optional
+>>>>>>> e4b5d74 (feat: refactor backend architecture with improved configuration, schema aliases, and support for retirement age and user-friendly chat input.)
 from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 
-# Add parent directory to path to resolve imports correctly
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+# backend/ and repo root so `app.*` and `engine.*` both resolve
+_APP_DIR = os.path.abspath(os.path.dirname(__file__))
+_BACKEND_DIR = os.path.abspath(os.path.join(_APP_DIR, ".."))
+_REPO_ROOT = os.path.abspath(os.path.join(_BACKEND_DIR, ".."))
+for _p in (_BACKEND_DIR, _REPO_ROOT):
+    if _p not in sys.path:
+        sys.path.append(_p)
 
 from app import models, schemas, crud, optimizer, copilot
+<<<<<<< HEAD
 from app.database import engine, get_db
 from engine.simulation import MonteCarloEngine, UserProfile, AssetClass, LifeEvent, Goal, SimulationConfig, Liability
+=======
+from app.database import engine, get_db, ensure_schema
+from engine.simluation import MonteCarloEngine, UserProfile, AssetClass, LifeEvent, Goal, SimulationConfig, Liability
+>>>>>>> e4b5d74 (feat: refactor backend architecture with improved configuration, schema aliases, and support for retirement age and user-friendly chat input.)
 
 # Initialize database tables
 models.Base.metadata.create_all(bind=engine)
+ensure_schema()
+
+MARKET_MODEL_ALIASES = {
+    "historical_bootstrap": "bootstrap",
+    "bootstrap": "bootstrap",
+    "parametric": "parametric",
+    "regime_switching": "regime_switching",
+}
+DECUMULATION_ALIASES = {
+    "constant_percent": "percentage",
+    "percentage": "percentage",
+    "fixed": "fixed",
+    "inflation_adjusted": "inflation_adjusted",
+    "guyton_klinger": "guyton_klinger",
+}
+STRESS_ALIASES = {
+    "career_shock": "career_disruption",
+    "career_disruption": "career_disruption",
+    "market_crash": "market_crash",
+    "hyperinflation": "hyperinflation",
+    "stagflation": "stagflation",
+}
+
+
+def _sim_config_from_schema(config: Optional[schemas.SimulationConfigSchema]) -> SimulationConfig:
+    market = MARKET_MODEL_ALIASES.get(
+        (config.market_model if config else "parametric").lower(),
+        config.market_model if config else "parametric",
+    )
+    decum = DECUMULATION_ALIASES.get(
+        (config.decumulation_strategy if config else "inflation_adjusted").lower(),
+        config.decumulation_strategy if config else "inflation_adjusted",
+    )
+    return SimulationConfig(
+        n_simulations=config.n_simulations if config else 10000,
+        horizon_years=config.horizon_years if config else 30,
+        random_seed=config.random_seed if config else 42,
+        market_model=market,
+        decumulation_strategy=decum,
+    )
 
 app = FastAPI(
     title="FinTwin Backend API",
@@ -32,11 +86,15 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+<<<<<<< HEAD
 # Mount static files using project-relative path (gracefully skip if not built)
 _BASE_DIR = Path(__file__).resolve().parents[2]  # Projects/
 _FRONTEND_OUT = _BASE_DIR / "frontend" / "out"
 if _FRONTEND_OUT.is_dir():
     app.mount("/static", StaticFiles(directory=str(_FRONTEND_OUT), html=True), name="static")
+=======
+_FRONTEND_OUT = os.path.join(_REPO_ROOT, "frontend", "out")
+>>>>>>> e4b5d74 (feat: refactor backend architecture with improved configuration, schema aliases, and support for retirement age and user-friendly chat input.)
 
 # --- Helper to map DB models to Sim Engine dataclasses ---
 def get_sim_inputs(db_user: models.User):
@@ -57,6 +115,7 @@ def get_sim_inputs(db_user: models.User):
         income_growth_vol=db_user.profile.income_growth_vol,
         inflation_mean=db_user.profile.inflation_mean,
         inflation_vol=db_user.profile.inflation_vol,
+        retirement_age=getattr(db_user.profile, "retirement_age", None) or 55,
     )
 
     # 2. Assets
@@ -193,13 +252,7 @@ def simulate_user(
     
     profile, assets, goals, life_events, liabilities = get_sim_inputs(db_user)
     
-    sim_config = SimulationConfig(
-        n_simulations=config.n_simulations if config else 10000,
-        horizon_years=config.horizon_years if config else 30,
-        random_seed=config.random_seed if config else 42,
-        market_model=config.market_model if config else "parametric",
-        decumulation_strategy=config.decumulation_strategy if config else "inflation_adjusted"
-    )
+    sim_config = _sim_config_from_schema(config)
 
     try:
         engine = MonteCarloEngine(
@@ -235,13 +288,7 @@ def simulate_adhoc(
         sim_goals = [Goal(**g.model_dump()) for g in goals]
         sim_events = [LifeEvent(**e.model_dump()) for e in life_events]
         
-        sim_config = SimulationConfig(
-            n_simulations=config.n_simulations if config else 10000,
-            horizon_years=config.horizon_years if config else 30,
-            random_seed=config.random_seed if config else 42,
-            market_model=config.market_model if config else "parametric",
-            decumulation_strategy=config.decumulation_strategy if config else "inflation_adjusted"
-        )
+        sim_config = _sim_config_from_schema(config)
         
         engine = MonteCarloEngine(
             profile=sim_profile,
@@ -310,7 +357,7 @@ def query_copilot(
         profile, assets, goals, life_events, liabilities = get_sim_inputs(db_user)
     except HTTPException:
         # Fallback profile if user hasn't created one yet
-        profile = UserProfile(30, 50000, 30000, 10000, 100000)
+        profile = UserProfile(30, 50000, 30000, 10000, 100000, retirement_age=55)
         assets = [AssetClass("Equity", 1.0, 0.12, 0.18)]
         goals = []
         life_events = []
@@ -355,6 +402,8 @@ def query_copilot(
 
     # Map message list to simple role/content dictionaries
     messages = [{"role": msg.role, "content": msg.content} for msg in request.messages]
+    if request.message:
+        messages.append({"role": "user", "content": request.message})
     
     copilot_result = copilot.chat_with_copilot(
         user_id=user_id,
@@ -437,7 +486,7 @@ def run_user_stress_test(
             assets=assets,
             life_events=life_events,
             goals=goals,
-            scenario_type=request.scenario_type,
+            scenario_type=STRESS_ALIASES.get(request.scenario_type, request.scenario_type),
             liabilities=liabilities
         )
         return stress_results
@@ -471,3 +520,7 @@ def optimize_user_multi_objective(
         return opt_results
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Multi-objective optimization failed: {str(e)}")
+
+
+if os.path.isdir(_FRONTEND_OUT):
+    app.mount("/", StaticFiles(directory=_FRONTEND_OUT, html=True), name="frontend")
