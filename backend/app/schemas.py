@@ -1,6 +1,6 @@
 from pydantic import BaseModel, Field, ConfigDict, EmailStr
 
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from datetime import datetime
 
 # --- Asset Allocation ---
@@ -266,3 +266,70 @@ class StrategyProfileSchema(BaseModel):
 class MultiObjectiveResponse(BaseModel):
     goal_name: str
     strategies: list[StrategyProfileSchema]
+
+
+# --- Risk Profiling & Assessment ---
+class RiskQuestionnaireRequest(BaseModel):
+    market_decline: int = Field(..., ge=1, le=5, description="1 (Sell all) to 5 (Invest more)")
+    investment_objective: int = Field(..., ge=1, le=5, description="1 (Capital preservation) to 5 (Maximum growth)")
+    volatility_comfort: int = Field(..., ge=1, le=5, description="1 (Very uncomfortable) to 5 (Very comfortable)")
+    return_preference: int = Field(..., ge=1, le=5, description="1 (Low return/risk) to 5 (Aggressive return/risk)")
+    financial_stability: int = Field(..., ge=1, le=5, description="1 (Unstable) to 5 (Exceptional stability)")
+
+class RiskFactorItem(BaseModel):
+    type: str = Field(..., description="positive, negative, neutral")
+    title: str
+    description: str
+
+class GoalRiskAssessmentItem(BaseModel):
+    name: str
+    target_amount: float
+    target_age: int
+    horizon_years: float
+    priority: str
+    category: str
+    posture: str
+    suggested_equity_pct: float
+    suggested_debt_pct: float
+    strategy_guidance: str
+
+class RecommendedAllocation(BaseModel):
+    equity: float
+    debt: float
+    gold: float
+    cash: float
+
+class RiskProfileResponse(BaseModel):
+    id: Optional[int] = None
+    user_id: int
+    risk_tolerance_score: float
+    risk_capacity_score: float
+    overall_score: float
+    risk_category: str
+    investment_horizon_years: float
+    questionnaire_version: str = "v1"
+    responses: dict[str, int]
+    factors: list[RiskFactorItem]
+    narrative: str
+    recommended_allocation: RecommendedAllocation
+    goal_assessments: list[GoalRiskAssessmentItem] = []
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+    model_config = ConfigDict(from_attributes=True)
+
+class QuestionOption(BaseModel):
+    value: int
+    label: str
+    score: float
+
+class QuestionItem(BaseModel):
+    id: str
+    title: str
+    question: str
+    options: list[QuestionOption]
+    weight: float
+
+class QuestionnaireMetadataResponse(BaseModel):
+    version: str = "v1"
+    questions: list[QuestionItem]
+    risk_categories: list[dict[str, Any]]

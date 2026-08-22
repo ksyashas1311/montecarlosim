@@ -90,9 +90,11 @@ export interface SimulationResult {
   expected_return: number;
 }
 
+import { RiskProfileDto, RecommendedAllocationDto } from "../lib/api";
+
 export interface PlanState {
   isOnboarded: boolean;
-  activeScreen: "dashboard" | "plan" | "goals" | "lab";
+  activeScreen: "dashboard" | "plan" | "goals" | "lab" | "risk";
   profile: UserProfile;
   assets: AssetAllocation;
   goals: Goal[];
@@ -101,6 +103,7 @@ export interface PlanState {
   whatChanged: WhatChangedItem[];
   scenarios: Scenario[];
   simulation: SimulationResult | null;
+  riskProfile: RiskProfileDto | null;
   isSimulating: boolean;
   lastSimulatedAt: Date | null;
   copilotOpen: boolean;
@@ -492,6 +495,7 @@ let state: PlanState = {
   whatChanged: initialWhatChanged,
   scenarios: initialScenarios,
   simulation: null,
+  riskProfile: null,
   isSimulating: false,
   lastSimulatedAt: new Date(),
   copilotOpen: false,
@@ -770,6 +774,35 @@ export const planStore = {
     }, 250);
   },
 
+  setRiskProfile(riskProfile: RiskProfileDto | null) {
+    state = { ...state, riskProfile };
+    notify();
+  },
+
+  applyRiskAllocation(alloc: RecommendedAllocationDto) {
+    state = {
+      ...state,
+      assets: {
+        equity: alloc.equity,
+        debt: alloc.debt,
+        gold: alloc.gold,
+        cash: alloc.cash,
+      },
+      whatChanged: [
+        {
+          id: `c_${Date.now()}`,
+          title: `Applied Risk Profile Allocation`,
+          detail: `Rebalanced to ${alloc.equity}% Equity · ${alloc.debt}% Debt · ${alloc.gold}% Gold · ${alloc.cash}% Cash`,
+          timestamp: "Just now",
+          impact: "Target Portfolio Aligned",
+        },
+        ...state.whatChanged.slice(0, 7),
+      ],
+    };
+    notify();
+    this.triggerLiveSimulation();
+  },
+
   loadDemoData() {
     state = {
       ...state,
@@ -781,6 +814,7 @@ export const planStore = {
       liabilities: initialLiabilities,
       whatChanged: initialWhatChanged,
       scenarios: initialScenarios,
+      riskProfile: null,
       activeScreen: "dashboard",
     };
     this.triggerLiveSimulation();

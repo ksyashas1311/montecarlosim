@@ -16,7 +16,8 @@ from app.database import Base, engine
 class TestFinTwinBackend(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        # Create tables in the in-memory test database
+        # Create tables in clean test database
+        Base.metadata.drop_all(bind=engine)
         Base.metadata.create_all(bind=engine)
         cls.client = TestClient(app)
         
@@ -32,9 +33,7 @@ class TestFinTwinBackend(unittest.TestCase):
 
     @classmethod
     def tearDownClass(cls):
-        # Drop all tables and dispose engine to prevent ResourceWarning
-        Base.metadata.drop_all(bind=engine)
-        engine.dispose()
+        pass
 
     def test_01_user_workflow(self):
         # 1. Create User

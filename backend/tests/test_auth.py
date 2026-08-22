@@ -19,6 +19,7 @@ from app.core.security import verify_password, create_access_token, create_refre
 class TestAuthSystem(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
+        Base.metadata.drop_all(bind=engine)
         Base.metadata.create_all(bind=engine)
         cls.client = TestClient(app)
         
@@ -34,8 +35,7 @@ class TestAuthSystem(unittest.TestCase):
 
     @classmethod
     def tearDownClass(cls):
-        Base.metadata.drop_all(bind=engine)
-        engine.dispose()
+        pass
 
     # --- 1. Registration Tests ---
 

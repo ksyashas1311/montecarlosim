@@ -9,10 +9,10 @@ import {
   Sparkles,
   RotateCcw,
   Bell,
-  User as UserIcon,
   LogOut,
   LogIn,
   UserPlus,
+  ShieldAlert,
 } from "lucide-react";
 import { usePlanStore } from "../hooks/usePlanStore";
 import { planStore } from "../store/planStore";
@@ -24,6 +24,7 @@ import DashboardView from "../components/dashboard/DashboardView";
 import PlanView from "../components/plan/PlanView";
 import GoalsTimelineView from "../components/goals/GoalsTimelineView";
 import ScenarioLabView from "../components/lab/ScenarioLabView";
+import RiskProfileView from "../components/risk/RiskProfileView";
 import CopilotBubble from "../components/copilot/CopilotBubble";
 import CopilotDrawer from "../components/copilot/CopilotDrawer";
 import AuthModal from "../components/auth/AuthModal";
@@ -50,6 +51,7 @@ export default function Home() {
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
     { id: "plan", label: "My Plan", icon: FileSpreadsheet },
     { id: "goals", label: "Goals & Timeline", icon: Calendar },
+    { id: "risk", label: "Risk Profile", icon: ShieldAlert },
     { id: "lab", label: "Scenario Lab", icon: Sliders },
   ];
 
@@ -72,7 +74,7 @@ export default function Home() {
             </div>
           </div>
 
-          {/* 4 Primary Navigation Items */}
+          {/* 5 Primary Navigation Items */}
           <nav className="p-4 space-y-1.5">
             {navItems.map((item) => {
               const Icon = item.icon;
@@ -137,7 +139,7 @@ export default function Home() {
                 <span className="text-[11px] font-bold text-white/70">Guest Mode</span>
               </div>
               <p className="text-[10px] text-white/40 leading-tight">
-                Sign in to sync simulations across devices and protect your plan.
+                Sign in to save your risk profile and sync simulations across devices.
               </p>
               <div className="grid grid-cols-2 gap-1.5 pt-1">
                 <button
@@ -177,7 +179,7 @@ export default function Home() {
               Twin Core Online
             </span>
             <span className="text-[10px] text-white/40 font-mono pl-2 border-l border-white/10 hidden lg:inline">
-              10,000 Monte Carlo Paths · Regime Switching Model
+              10,000 Monte Carlo Paths · Risk Architecture Active
             </span>
           </div>
 
@@ -235,11 +237,12 @@ export default function Home() {
           {activeScreen === "dashboard" && <DashboardView />}
           {activeScreen === "plan" && <PlanView />}
           {activeScreen === "goals" && <GoalsTimelineView />}
+          {activeScreen === "risk" && <RiskProfileView />}
           {activeScreen === "lab" && <ScenarioLabView />}
         </div>
       </main>
 
-      {/* Mobile Bottom Navigation Bar (4 destinations) */}
+      {/* Mobile Bottom Navigation Bar (5 destinations) */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-[#0e141c]/95 border-t border-white/10 backdrop-blur-xl flex items-center justify-around z-40 px-2">
         {navItems.map((item) => {
           const Icon = item.icon;
@@ -248,12 +251,12 @@ export default function Home() {
             <button
               key={item.id}
               onClick={() => planStore.setActiveScreen(item.id as any)}
-              className={`flex flex-col items-center gap-1 py-1 px-3 rounded-xl transition ${
+              className={`flex flex-col items-center gap-1 py-1 px-2 rounded-xl transition ${
                 active ? "text-[#00dce5]" : "text-white/40"
               }`}
             >
-              <Icon className="w-5 h-5" />
-              <span className="text-[10px] font-bold">{item.label}</span>
+              <Icon className="w-4 h-4" />
+              <span className="text-[9px] font-bold">{item.label}</span>
             </button>
           );
         })}

@@ -22,6 +22,7 @@ class User(Base):
     life_events = relationship("LifeEventModel", back_populates="user", cascade="all, delete-orphan")
     liabilities = relationship("LiabilityModel", back_populates="user", cascade="all, delete-orphan")
     simulation_runs = relationship("SimulationRunModel", back_populates="user", cascade="all, delete-orphan")
+    risk_profile = relationship("RiskProfileModel", back_populates="user", uselist=False, cascade="all, delete-orphan")
 
 
 
@@ -120,4 +121,29 @@ class SimulationRunModel(Base):
     result_data = Column(JSON, nullable=True)
 
     user = relationship("User", back_populates="simulation_runs")
+
+
+class RiskProfileModel(Base):
+    __tablename__ = "risk_profiles"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), unique=True, index=True, nullable=False)
+    
+    risk_tolerance_score = Column(Float, nullable=False)
+    risk_capacity_score = Column(Float, nullable=False)
+    overall_score = Column(Float, nullable=False)
+    risk_category = Column(String, nullable=False)  # Conservative, Moderately Conservative, Moderate, Moderately Aggressive, Aggressive
+    investment_horizon_years = Column(Float, nullable=False)
+    questionnaire_version = Column(String, default="v1", nullable=False)
+    
+    responses = Column(JSON, nullable=False)
+    factors = Column(JSON, nullable=False)
+    narrative = Column(String, nullable=False)
+    recommended_allocation = Column(JSON, nullable=False)
+    goal_assessments = Column(JSON, nullable=True)
+    
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc), nullable=False)
+
+    user = relationship("User", back_populates="risk_profile")
 

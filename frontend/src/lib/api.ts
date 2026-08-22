@@ -131,3 +131,103 @@ export const authApi = {
 
   getGoogleLoginUrl: () => `${API_BASE}/auth/google/login`,
 };
+
+export interface RiskFactorDto {
+  type: "positive" | "negative" | "neutral";
+  title: string;
+  description: string;
+}
+
+export interface GoalRiskDto {
+  name: string;
+  target_amount: number;
+  target_age: number;
+  horizon_years: number;
+  priority: string;
+  category: string;
+  posture: string;
+  suggested_equity_pct: number;
+  suggested_debt_pct: number;
+  strategy_guidance: string;
+}
+
+export interface RecommendedAllocationDto {
+  equity: number;
+  debt: number;
+  gold: number;
+  cash: number;
+}
+
+export interface RiskProfileDto {
+  id?: number;
+  user_id: number;
+  risk_tolerance_score: number;
+  risk_capacity_score: number;
+  overall_score: number;
+  risk_category: "Conservative" | "Moderately Conservative" | "Moderate" | "Moderately Aggressive" | "Aggressive";
+  investment_horizon_years: number;
+  questionnaire_version: string;
+  responses: {
+    market_decline: number;
+    investment_objective: number;
+    volatility_comfort: number;
+    return_preference: number;
+    financial_stability: number;
+  };
+  factors: RiskFactorDto[];
+  narrative: string;
+  recommended_allocation: RecommendedAllocationDto;
+  goal_assessments: GoalRiskDto[];
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface QuestionOptionDto {
+  value: number;
+  label: string;
+  score: number;
+}
+
+export interface QuestionItemDto {
+  id: string;
+  title: string;
+  question: string;
+  options: QuestionOptionDto[];
+  weight: number;
+}
+
+export interface QuestionnaireMetadataDto {
+  version: string;
+  questions: QuestionItemDto[];
+  risk_categories: { min: number; max: number; name: string }[];
+}
+
+export const riskApi = {
+  getQuestions: () => apiClient<QuestionnaireMetadataDto>("/risk-profile/questions"),
+  
+  getProfile: () => apiClient<RiskProfileDto>("/risk-profile"),
+  
+  submitQuestionnaire: (responses: {
+    market_decline: number;
+    investment_objective: number;
+    volatility_comfort: number;
+    return_preference: number;
+    financial_stability: number;
+  }) =>
+    apiClient<RiskProfileDto>("/risk-profile", {
+      method: "POST",
+      body: JSON.stringify(responses),
+    }),
+
+  updateQuestionnaire: (responses: {
+    market_decline: number;
+    investment_objective: number;
+    volatility_comfort: number;
+    return_preference: number;
+    financial_stability: number;
+  }) =>
+    apiClient<RiskProfileDto>("/risk-profile", {
+      method: "PUT",
+      body: JSON.stringify(responses),
+    }),
+};
