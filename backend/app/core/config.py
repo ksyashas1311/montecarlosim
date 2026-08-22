@@ -1,8 +1,13 @@
 import os
+from pathlib import Path
 from typing import Optional, List
 from dotenv import load_dotenv
 
-load_dotenv()
+# Search workspace root and backend directory for .env
+_REPO_ROOT = Path(__file__).resolve().parents[3]
+if (_REPO_ROOT / ".env").exists():
+    load_dotenv(_REPO_ROOT / ".env", override=True)
+load_dotenv(override=True)
 
 
 def _normalize_database_url(url: str) -> str:

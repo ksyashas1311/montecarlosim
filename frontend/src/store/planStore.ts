@@ -111,9 +111,9 @@ export interface PlanState {
   decumulationStrategy: "guyton_klinger" | "constant_percentage" | "vanguard_dynamic";
 }
 
-// Initial Demo Data (Aditi, 25)
+// Initial Benchmark Profile
 const initialProfile: UserProfile = {
-  name: "Aditi",
+  name: "",
   current_age: 25,
   monthly_income: 150000,
   monthly_expenses: 65000,

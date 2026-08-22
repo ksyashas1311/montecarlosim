@@ -4,6 +4,7 @@ import React from "react";
 import { Sparkles, Layers } from "lucide-react";
 import { usePlanStore } from "../../hooks/usePlanStore";
 import { planStore, Goal } from "../../store/planStore";
+import { useAuth } from "../../context/AuthContext";
 import StaleBadge from "../shared/StaleBadge";
 import HealthScoreCard from "./HealthScoreCard";
 import WhatChangedFeed from "./WhatChangedFeed";
@@ -12,8 +13,10 @@ import GoalProgressList from "./GoalProgressList";
 
 export default function DashboardView() {
   const store = usePlanStore();
+  const { user } = useAuth();
   const { profile, simulation, whatChanged, goals, isSimulating } = store;
 
+  const displayName = user?.name || profile.name || "there";
   const healthScore = simulation?.health_score ?? 78;
   const scoreDelta = simulation?.health_score_delta ?? 4;
 
@@ -29,7 +32,7 @@ export default function DashboardView() {
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-2xl font-extrabold text-white tracking-tight">
-              Good evening, {profile.name}
+              Good day, {displayName}
             </h1>
             <StaleBadge isSimulating={isSimulating} />
           </div>

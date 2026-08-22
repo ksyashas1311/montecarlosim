@@ -11,6 +11,7 @@ import {
 import { usePlanStore } from "../../hooks/usePlanStore";
 import { useCopilotContext } from "../../hooks/useCopilotContext";
 import { planStore, PlanState } from "../../store/planStore";
+import { useAuth } from "../../context/AuthContext";
 import { formatINR } from "../shared/CurrencyFormat";
 import SuggestedPrompts from "./SuggestedPrompts";
 import ProbabilityChip from "./ProbabilityChip";
@@ -28,19 +29,29 @@ interface Message {
 
 export default function CopilotDrawer() {
   const store = usePlanStore();
+  const { user } = useAuth();
   const { suggestedPrompts, getReversePlanningAdvice } = useCopilotContext();
   const isOpen = store.copilotOpen;
 
+  const displayName = user?.name || store.profile.name || "there";
+
   const [inputQuery, setInputQuery] = useState("");
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: "m_welcome",
-      sender: "copilot",
-      text: `Hello ${store.profile.name}! I'm your digital twin copilot. I continuously monitor your 10,000 Monte Carlo paths, cashflows, and goal probabilities. How can I assist you with your plan today?`,
-    },
-  ]);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setMessages((prev) => {
+      const welcomeText = `Hello ${displayName}! I'm your digital twin copilot. I continuously monitor your 10,000 Monte Carlo paths, cashflows, and goal probabilities. How can I assist you with your plan today?`;
+      if (prev.length === 0) {
+        return [{ id: "m_welcome", sender: "copilot", text: welcomeText }];
+      }
+      if (prev.length === 1 && prev[0].id === "m_welcome") {
+        return [{ ...prev[0], text: welcomeText }];
+      }
+      return prev;
+    });
+  }, [displayName]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
